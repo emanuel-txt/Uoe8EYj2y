@@ -4,7 +4,7 @@ local base = getfenv(0)
 repeat task.wait() until game:IsLoaded() and game:GetService("Players").LocalPlayer
 local shared = type(getgenv) == "function" and getgenv() or base
 if shared.BananaLocal and shared.BananaLocal.phase ~= "failed" and shared.BananaLocal.phase ~= "stopped" then
-    if shared.BananaLocal.version ~= "2026.10.18-r3-original-ui" then
+    if shared.BananaLocal.version ~= "2026.10.18-r4-level-farm" then
         warn("[BananaLocal] Updated version available. Rejoin the game before testing; an older instance is still running.")
     end
     warn("[BananaLocal] Already started; inspect getgenv().BananaLocal.phase")
@@ -193,9 +193,99 @@ end
 
 end)()
 local runtime = runtime_factory(base, "https://raw.githubusercontent.com/emanuel-txt/Uoe8EYj2y/main/banana_local.lua")
-runtime.version = "2026.10.18-r3-original-ui"
+runtime.version = "2026.10.18-r4-level-farm"
 runtime.env.Config = shared.Config
 shared.BananaLocal = runtime
+local level_farm_factory = (function()
+-- language: Luau, file: level_farm.lua, target: explicit quest-to-combat transitions
+return function(api)
+    local state = {phase = "idle", requests = 0, target = nil, selected = nil}
+    local was_enabled, had_active, last_request, busy = false, false, -math.huge, false
+    local function reset()
+        state.selected, state.target, state.requests = nil, nil, 0
+        state.rejection_reported, state.last_error = nil, nil
+        had_active, last_request = false, -math.huge
+    end
+    local function valid_name(value) return type(value) == "string" and value ~= "" end
+    local function run()
+        if not api.enabled() then
+            if was_enabled then reset() end
+            was_enabled = false; state.phase = "idle"; return
+        end
+        was_enabled = true
+        if not api.allowed() then state.phase = "paused_by_other_task"; return end
+        if not api.ready() then state.phase = "waiting_character"; return end
+        local active = api.active_quest()
+        if not active or active.visible == nil then state.phase = "waiting_quest_interface"; return end
+        if not active.visible then
+            if had_active then reset() end
+            if not state.selected then
+                state.phase = "selecting_quest"
+                local quest = api.select_quest()
+                if type(quest) ~= "table" or not valid_name(quest.Mob) or not valid_name(quest.QuestName) or quest.Id == nil or quest.Pos == nil then
+                    state.phase = "quest_data_unavailable"; return
+                end
+                state.selected = quest
+                state.target = quest.Mob
+            end
+            if state.requests >= 5 then
+                state.phase = "quest_not_confirmed"
+                if not state.rejection_reported then
+                    api.report("Auto Farm", "Quest acceptance was not confirmed after five attempts; disable/re-enable Start Farm to retry")
+                    state.rejection_reported = true
+                end
+                return
+            end
+            state.phase = "moving_to_quest"
+            if not api.at_quest(state.selected) then api.move_to_quest(state.selected); return end
+            state.phase = "awaiting_quest_acceptance"
+            if api.now() - last_request < 2 then return end
+            last_request = api.now()
+            state.requests += 1
+            api.request_quest(state.selected)
+            return
+        end
+        had_active = true
+        -- The quest panel can appear before GuideModule.QuestData refreshes.
+        -- Keep the target selected for the accepted request during that gap.
+        local target = state.selected and state.selected.Mob or active.target
+        if not valid_name(target) then state.phase = "waiting_quest_target"; return end
+        state.target = target
+        local enemy = api.find_enemy(target)
+        if enemy then
+            state.phase = "fighting"
+            api.engage(enemy)
+        else
+            state.phase = "moving_to_enemy_spawn"
+            if not api.move_to_spawn(target) then state.phase = "waiting_enemy_spawn" end
+        end
+    end
+    local controller = {state = state}
+    function controller.step()
+        if busy then return state.phase end
+        busy = true
+        local ok, err = pcall(run)
+        busy = false
+        if not ok then
+            local stage = state.phase
+            state.phase, state.last_error = "error", tostring(err)
+            api.report("Auto Farm / " .. stage, tostring(err))
+        end
+        return state.phase
+    end
+    function controller.reset()
+        reset(); state.rejection_reported = nil; state.last_error = nil; state.phase = "idle"
+    end
+    return controller
+end
+
+end)()
+runtime.create_level_farm = function(api)
+    local controller = level_farm_factory(api)
+    runtime.level_farm = controller
+    runtime.autofarm = controller.state
+    return controller
+end
 local ui_factory = (function()
 -- language: Luau, file: ui.lua, runtime: Roblox executor, target: unmodified original UI integration
 return function(runtime, base, source)
@@ -304,6 +394,7 @@ function SaveSettings(name, value, subvalue)
         if type(Settings[name]) ~= "table" then Settings[name] = {} end
         Settings[name][value] = subvalue
     elseif name ~= nil then Settings[name] = value end
+    if name == "Start Farm" and value == false and BananaLocal.level_farm then BananaLocal.level_farm.reset() end
     BananaLocal.save_settings(Settings)
     if name == "Auto Load Script" and value then BananaLocal.queue_reload() end
 end
@@ -6601,6 +6692,7 @@ local function B(C)
 	return c
 end
 
+local BananaSelectLevelQuest = B
 TakeQuestLevel = function()
 	local V = B(t.Data.Level.Value)
 	if not V or not V.Pos then
@@ -7073,13 +7165,20 @@ function FarmMethod()
 		end
 	end
 	f = V or (GetNameDoubleQuest()) or ""
-	if not t.PlayerGui.Main:FindFirstChild("Quest").Visible and typeof(f) == "string" then
+	local function _isQuestActive()
+		local pg = t:FindFirstChild("PlayerGui")
+		local main = pg and (pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)"))
+		local q = main and main:FindFirstChild("Quest")
+		local qv = q and (q.Visible == true or (q:FindFirstChild("Container") and q.Container.Visible == true))
+		return (qv == true) or (DontQuest and DontQuest())
+	end
+	if not _isQuestActive() and typeof(f) == "string" then
 		TakeQuestLevel()
 	else
 		if
 			Settings["Auto Quest [Katakuri/Bone/Tyrant]"]
 			and t.Data.Level.Value >= C
-			and not t.PlayerGui.Main:FindFirstChild("Quest").Visible
+			and not _isQuestActive()
 		then
 			QuestBoneAndkatakuri(H, J)
 			return
@@ -7238,6 +7337,96 @@ function FarmMethod()
 		end
 	end
 end
+-- Embedded into core.lua where the recovered quest selector and game helpers are in scope.
+do
+    local recovered_farm = FarmMethod
+    local function normalize_name(value)
+        return (tostring(value or ""):gsub("%s*%[Lv%.?%s*%d+%]", ""):match("^%s*(.-)%s*$"))
+    end
+    local function quest_panel()
+        local pg = t:FindFirstChild("PlayerGui")
+        local main = pg and (pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)"))
+        return main and main:FindFirstChild("Quest")
+    end
+    local controller = BananaLocal.create_level_farm({
+        now = tick,
+        enabled = function() return Settings["Start Farm"] == true end,
+        allowed = function() return StackFarm ~= false end,
+        ready = function()
+            local character = t.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            return humanoid and humanoid.Health > 0 and character:FindFirstChild("HumanoidRootPart") ~= nil
+        end,
+        active_quest = function()
+            local panel = quest_panel()
+            if not panel then return nil end
+            local data = Z.Data and Z.Data.QuestData
+            local target
+            if data and type(data.Task) == "table" then
+                for name, count in pairs(data.Task) do
+                    if type(name) == "string" and (type(count) ~= "number" or count > 0) then target = name; break end
+                end
+            end
+            return {visible = panel.Visible == true, target = target}
+        end,
+        select_quest = function() return BananaSelectLevelQuest(t.Data.Level.Value) end,
+        at_quest = function(quest)
+            local position = typeof(quest.Pos) == "CFrame" and quest.Pos.Position or quest.Pos
+            return (position - t.Character.HumanoidRootPart.Position).Magnitude <= 8
+        end,
+        move_to_quest = function(quest)
+            local position = typeof(quest.Pos) == "CFrame" and quest.Pos.Position or quest.Pos
+            toTarget(CFrame.new(position) * CFrame.new(0, 4, 2), true)
+        end,
+        request_quest = function(quest) CommF:InvokeServer("StartQuest", tostring(quest.QuestName), quest.Id) end,
+        find_enemy = function(target)
+            local nearest, distance = nil, math.huge
+            for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+                if IsMobAlive(enemy) and normalize_name(enemy.Name) == normalize_name(target) then
+                    local current = (enemy.HumanoidRootPart.Position - t.Character.HumanoidRootPart.Position).Magnitude
+                    if current < distance then nearest, distance = enemy, current end
+                end
+            end
+            return nearest
+        end,
+        move_to_spawn = function(target)
+            local origin = workspace:FindFirstChild("_WorldOrigin")
+            local spawns = origin and origin:FindFirstChild("EnemySpawns")
+            local nearest, distance = nil, math.huge
+            if spawns then
+                for _, part in ipairs(spawns:GetChildren()) do
+                    if part:IsA("BasePart") and (normalize_name(part.Name) == normalize_name(target)
+                        or normalize_name(part:GetAttribute("DisplayName")) == normalize_name(target)) then
+                        local current = (part.Position - t.Character.HumanoidRootPart.Position).Magnitude
+                        if current < distance then nearest, distance = part, current end
+                    end
+                end
+            end
+            if not nearest then return false end
+            toTarget(nearest.CFrame * CFrame.new(0, 20, 0))
+            return true
+        end,
+        engage = function(enemy)
+            local pg = t:FindFirstChild("PlayerGui")
+            local hud = pg and pg:FindFirstChild("TransformationHUD")
+            local image = hud and hud:FindFirstChild("ImageLabel")
+            local training = image and image.Visible and (Settings["Auto Finish Train Quest"] or Settings["Auto Finish Train Draco Quest"])
+            local offset = not training and Settings["Select Weapon"] == "Blox Fruit"
+                and CFrame.new(-7, getgenv().YPosFruit or 20, 0) or CFrame.new(7, 20, 0)
+            -- Move first: a missing optional HUD must not stop travel to enemies.
+            toTarget(enemy.HumanoidRootPart.CFrame * offset)
+            sizepart(enemy)
+            BringMob(enemy)
+            FarmMastery(enemy)
+            ClickM1(enemy)
+        end,
+        report = BananaLocal.report,
+    })
+    FarmMethod = function()
+        return recovered_farm()
+    end
+end
+
 spawn(function()
 	while task.wait() do
 		local f, f = pcall(function()

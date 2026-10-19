@@ -38,6 +38,11 @@ if runtime then
     end
     report.world_flags = {first = environment.OldWorld == true, second = environment.NewWorld == true, third = environment.ThreeWorld == true}
     if runtime.ui_status then report.ui_status = redact(runtime.ui_status.message) end
+    if runtime.autofarm then
+        local state = runtime.autofarm
+        report.auto_farm = {phase = state.phase, target = state.target, requests = state.requests, last_error = redact(state.last_error)}
+        if state.selected then report.auto_farm.quest = {name = state.selected.QuestName, id = state.selected.Id, mob = state.selected.Mob} end
+    end
     local options = runtime.library and runtime.library.Options or {}
     report.control_count = 0
     for name, option in pairs(options) do
