@@ -1,7 +1,7 @@
 -- language: Luau, file: ui.lua, runtime: Roblox, target: local UI adapter for the recovered source
 return function(runtime, base)
     local ui = {Options = {}, Pages = {}, controls = {}, connections = {}}
-    local gui, shell, navigation, content
+    local gui, shell, navigation, content, status
     local colors = {bg = Color3.fromRGB(20, 23, 30), panel = Color3.fromRGB(30, 35, 45),
         text = Color3.fromRGB(235, 239, 245), secondary = Color3.fromRGB(180, 188, 203), active = Color3.fromRGB(75, 115, 185)}
     local function instance(class, parent, props)
@@ -259,6 +259,12 @@ return function(runtime, base)
         if not ok and base.print then base.print("[BananaLocal] " .. tostring(cfg.Desc)) end
     end
     ui.CreateNotification = ui.CreateNoti
+    function ui.SetStatus(message, failed)
+        if status then
+            status.Text = tostring(message)
+            status.TextColor3 = failed and Color3.fromRGB(245, 125, 125) or colors.secondary
+        end
+    end
     function ui.CreateMain(cfg)
         local parent
         if type(base.gethui) == "function" then local ok, value = pcall(base.gethui); if ok then parent = value end end
@@ -272,14 +278,17 @@ return function(runtime, base)
             TextColor3 = colors.text, BackgroundColor3 = colors.panel, TextSize = 18})
         local close = instance("TextButton", shell, {Text = "X", Size = UDim2.fromOffset(40, 28), Position = UDim2.new(1, -46, 0, 4),
             TextColor3 = colors.text, BackgroundColor3 = colors.panel, TextSize = 16})
-        navigation = instance("ScrollingFrame", shell, {Position = UDim2.fromOffset(6, 42), Size = UDim2.new(0.27, -8, 1, -48),
+        navigation = instance("ScrollingFrame", shell, {Position = UDim2.fromOffset(6, 42), Size = UDim2.new(0.27, -8, 1, -78),
             CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ScrollBarThickness = 4})
-        content = instance("Frame", shell, {Position = UDim2.new(0.27, 6, 0, 42), Size = UDim2.new(0.73, -12, 1, -48), BackgroundTransparency = 1})
+        content = instance("Frame", shell, {Position = UDim2.new(0.27, 6, 0, 42), Size = UDim2.new(0.73, -12, 1, -78), BackgroundTransparency = 1})
+        status = text(shell, "Carregando...", 24)
+        status.Position = UDim2.new(0, 6, 1, -28)
         layout(navigation)
         local main = {CreateNoti = ui.CreateNoti}
         function main.CreatePage(spec, second)
             if spec == main then spec = second end
             local name = spec.Page_Name or spec.Page_Title or "Page"
+            runtime.stage("Página " .. name)
             if ui.Pages[name] then return ui.Pages[name] end
             local page = {name = name}
             page.root = instance("ScrollingFrame", content, {Visible = next(ui.Pages) == nil, Size = UDim2.fromScale(1, 1),
@@ -293,12 +302,23 @@ return function(runtime, base)
             ui.Pages[name] = page
             return page
         end
-        connect(minimize.Activated, function() navigation.Visible = not navigation.Visible; content.Visible = navigation.Visible end)
+        local expanded_size = shell.Size
+        ui.minimized = false
+        function ui.SetMinimized(value)
+            ui.minimized = value == true
+            navigation.Visible = not ui.minimized
+            content.Visible = not ui.minimized
+            status.Visible = not ui.minimized
+            shell.Size = ui.minimized and UDim2.new(0.88, 0, 0, 40) or expanded_size
+            minimize.Text = ui.minimized and "+" or "_"
+        end
+        connect(minimize.Activated, function() ui.SetMinimized(not ui.minimized) end)
         connect(close.Activated, function() gui.Enabled = false end)
         connect(base.game:GetService("UserInputService").InputBegan, function(input, processed)
             if not processed and input.KeyCode == Enum.KeyCode.RightControl then gui.Enabled = not gui.Enabled end
         end)
         ui.gui = gui
+        ui.shell = shell
         return main
     end
     function ui.Destroy()

@@ -16,6 +16,11 @@ function SaveSettings(name, value, subvalue)
     if name == "Auto Load Script" and value then BananaLocal.queue_reload() end
 end
 function ReadSetting() return BananaLocal.read_settings() end
+function CheckSwordLegendary()
+    for _, sword in ipairs({"Shisui", "Saddi", "Wando"}) do
+        if not CheckItemInventory(sword) then return sword end
+    end
+end
 function PrepareMultiSelectList(b, t, A)
 	local a = {}
 	for s in pairs(b) do
@@ -1522,431 +1527,6 @@ game:GetService("Players").LocalPlayer.Idled:connect(function()
 end)
 local A = BananaLocal.library
 Main = A.CreateMain({ Title = "Blox Fruit", Desc = " - Blox Fruit" })
-
--- ============================================================================
--- PASS 30 - GUARANTEED TAB REGISTRY
--- The original source creates pages progressively. If a later runtime section
--- errors before its CreatePage call, those tabs never reach the UI. To preserve
--- the original page set while preventing that failure mode, CreatePage is
--- cached by Page_Name and all recovered pages are registered immediately after
--- the main window is created. Later source blocks reuse these same page objects.
--- No tab content is fabricated here; this only guarantees page registration.
--- ============================================================================
-do
-    local __BF_OriginalCreatePage = Main.CreatePage
-    local __BF_PageCache = {}
-    local __BF_PageSpecs = {
-        { Page_Name = "Shop", Page_Title = "Shop" },
-        { Page_Name = "Status And Server", Page_Title = "Status And Server" },
-        { Page_Name = "LocalPlayer", Page_Title = "LocalPlayer" },
-        { Page_Name = "Setting Farm", Page_Title = "Setting Farm" },
-        { Page_Name = "Hold and Select Skill", Page_Title = "Setting Hold and Select Skill" },
-        { Page_Name = "Farming", Page_Title = "Farming" },
-        { Page_Name = "Stack Farming", Page_Title = "Stack Farming" },
-        { Page_Name = "Farming Orther", Page_Title = "Farming Orther" },
-        { Page_Name = "Fruits and Raid,Dunge", Page_Title = "Fruits and Raid,Dunge" },
-        { Page_Name = "Sea Event", Page_Title = "Sea Event Tab" },
-        { Page_Name = "Upgrade Race", Page_Title = "Upgrade Race Tab" },
-        { Page_Name = "Get and Upgrade Items", Page_Title = "Get and Upgrade Items Tab" },
-        { Page_Name = "Volcano Event", Page_Title = "Volcano Event Tab" },
-        { Page_Name = "ESP", Page_Title = "ESP Tab" },
-        { Page_Name = "PVP", Page_Title = "PVP Tab" },
-        { Page_Name = "Tab Webhook", Page_Title = "Tab Webhook" },
-        { Page_Name = "Setting", Page_Title = "Setting Tab" },
-        -- Source-declared additional pages from BananaCatOriginalUI.Pages / BuildMissingPages.
-        { Page_Name = "Race Normal", Page_Title = "Race Normal" },
-        { Page_Name = "Race Draco", Page_Title = "Race Draco" },
-        { Page_Name = "Race V4", Page_Title = "Race V4" },
-        { Page_Name = "Fishing", Page_Title = "Fishing" },
-        { Page_Name = "Farming Volcano", Page_Title = "Farming Volcano" },
-        { Page_Name = "Kitsune Event", Page_Title = "Kitsune Event" },
-    }
-
-    local function __BF_CreatePageCached(a, b)
-        local spec = (a == Main) and b or a
-        if type(spec) ~= "table" then
-            return nil
-        end
-        local name = spec.Page_Name or spec.Page_Title or "Default Page"
-        local existing = __BF_PageCache[name]
-        if existing then
-            return existing
-        end
-        local ok, page = pcall(function()
-            return __BF_OriginalCreatePage(spec)
-        end)
-        if (not ok or not page) then
-            ok, page = pcall(function()
-                return __BF_OriginalCreatePage(Main, spec)
-            end)
-        end
-        if ok and page then
-            __BF_PageCache[name] = page
-            return page
-        end
-        return nil
-    end
-
-    Main.CreatePage = __BF_CreatePageCached
-    for _, spec in ipairs(__BF_PageSpecs) do
-        __BF_PageCache[spec.Page_Name] = __BF_CreatePageCached(spec)
-    end
-    -- A second pass handles UI libraries that finish binding CreatePage only after
-    -- the first few pages are created. No page content is synthesized.
-    for _, spec in ipairs(__BF_PageSpecs) do
-        if not __BF_PageCache[spec.Page_Name] then
-            task.defer(function()
-                local page = __BF_CreatePageCached(spec)
-                __BF_PageCache[spec.Page_Name] = page
-            end)
-        end
-    end
-    local __BF_PageStatus = {}
-    for _, spec in ipairs(__BF_PageSpecs) do
-        __BF_PageStatus[spec.Page_Name] = __BF_PageCache[spec.Page_Name] ~= nil
-    end
-
-    getgenv().__BF_BananaCatPages = __BF_PageCache
-    getgenv().__BF_BananaCatPageStatus = __BF_PageStatus
-
-    -- Source-derived page vocabulary + exact BuildMissingPages recovery.
-    -- This adds the six pages that the 17-page executable set did not instantiate.
-    getgenv().BananaCatOriginalUI = getgenv().BananaCatOriginalUI or {}
-    BananaCatOriginalUI.Pages = {
-        "Status And Server",
-        "LocalPlayer",
-        "Setting Farm",
-        "Hold and Select Skill",
-        "Farming",
-        "Stack Farming",
-        "Farming Orther",
-        "Fruits and Raid,Dunge",
-        "Sea Event",
-        "Race Normal",
-        "Race Draco",
-        "Race V4",
-        "Upgrade Race",
-        "Fishing",
-        "Farming Volcano",
-        "Volcano Event",
-        "Kitsune Event",
-        "Webhook",
-        "PVP Tab",
-        "ESP Tab",
-        "Shop",
-        "Setting Tab"
-    }
-    BananaCatOriginalUI.Sections = {
-        "Status",
-        "SectionServer",
-        "SettingFarmMainSection",
-        "SettingAutoFarmSection",
-        "HoldSkillsSection",
-        "FarmObservationSection",
-        "FarmotherMain",
-        "stackFarmMain",
-        "StackDevilFruitSection",
-        "SectionLocalPlayerMain",
-        "LocalPlayerMain",
-        "SettingSkillMain",
-        "LeviathanEventSection",
-        "SettingSeaEventSection",
-        "FarmingSeaEventSection",
-        "SeaEventTab",
-        "GetItemsSection",
-        "BossRipIndraSection",
-        "BossSoulReaperSection",
-        "BossDoughKingSection",
-        "BossDarkbeardSection",
-        "AutoKillBossSection",
-        "AutoKillMobSection",
-        "AttackAllMobSection",
-        "RaidsSection",
-        "MultiRaidsSection",
-        "DungeonSection",
-        "DungeonJoinSection",
-        "RaceNormalSection",
-        "RaceDracoSection",
-        "RaceV4Section",
-        "KillTrialSection",
-        "UpgradeWeaponSection",
-        "MasteryFarmSection",
-        "MasteryWeaponSection",
-        "FarmingMaterialSection",
-        "FarmingVolcanoSection",
-        "FullyVolcanoSection",
-        "BerrySection",
-        "ESPSection",
-        "MISCPVPSection",
-        "FishingSection",
-        "KitsuneEventSection",
-        "EventGameSection",
-        "SectionShopMisc",
-        "SectionShopFighting",
-        "SectionShopAbilities",
-        "SectionWebhook",
-        "BoatSettingSection",
-        "SettingsVolcanoSection",
-        "SettingsAimbotSection"
-    }
-    BananaCatOriginalUI.Controls = {
-        "Select Owner Boat Find Leviathan",
-        "Speed Boat Auto Drive",
-        "Select Weapon",
-        "Auto Tushita",
-        "Auto Get Ghoul",
-        "Hop Server Get Ghoul",
-        "Select Sea Events",
-        "Use Dragonstorm For Sea Event",
-        "Auto Change Dragonstorm With Skull Guitar",
-        "Use Click M1 Fruit For Sea Event",
-        "Use Click M1 Skull Guitar For Sea Event",
-        "Auto Change Dragonstorm When Kill Boat",
-        "Auto Sea Event",
-        "Time Hop Server",
-        "Select Method Farm",
-        "Farm Material",
-        "Select Material",
-        "Auto Quest [Katakuri/Bone/Tyrant]",
-        "Auto Finish Train Quest",
-        "Auto Finish Train Draco Quest",
-        "Start Farm",
-        "Ignore Attack Katakuri",
-        "Hop Find Katakuri",
-        "Stack Train With Trial Race",
-        "Hop Server [Trial Or Pull Lever]",
-        "Multi Trial",
-        "Auto Turn On V3 Near Door",
-        "Auto Reset Character",
-        "Auto Trial",
-        "Auto UP Observation V2",
-        "Auto Upgrade Race V2-V3",
-        "Auto Get Fully Cyborg",
-        "Auto Get Cyborg Hop Collect Chest",
-        "Auto Get Cyborg",
-        "Fully Event Prehistoric Island",
-        "Webhook Find Prehistoric Island",
-        "Select Method Kill Golem",
-        "Select Weapon Kill Golem",
-        "Kill Aura Only Raid And Volcano",
-        "Time Delay Kill",
-        "Fix Volcano Safe",
-        "Bring Mob",
-        "Auto Soul Guitar",
-        "Kill All Boss",
-        "Select Boss",
-        "Hop Server Find Boss",
-        "Auto Upgrade Sword Inventory",
-        "Auto Upgrade Gun Inventory",
-        "Auto Quest Dragon Hunter",
-        "Auto Saber",
-        "Auto Find Prehistoric Island",
-        "Select Quest Fishing",
-        "Auto Get Rainbow Haki",
-        "Auto Quest Dojo Trainer",
-        "Account Pick Slot Raid",
-        "Account Buy Chip",
-        "Select Raid",
-        "Get Fruit In Inventory Low Beli",
-        "Select Players Multi",
-        "Select Card Priority",
-        "Auto CDK",
-        "ESP Fruit",
-        "Hop Server Kitsune Island",
-        "Select Boat",
-        "Auto Yoru Mini",
-        "Value Collect Chest to Hop",
-        "Auto Yoru Mini (Hop Server)",
-        "Auto Event Prehistoric Island",
-        "Auto Present Event",
-        "Auto Celestial Soldier",
-        "Auto Rip Commander",
-        "Auto Event Halloween",
-        "Auto Attack Dungeon",
-        "Auto Fishing",
-        "Teleport To Fruit",
-        "Auto Factory",
-        "Auto Pirate Raid",
-        "Auto Elite Hunter",
-        "Auto Touch Pad Haki",
-        "Auto Summon Rip Indra",
-        "Attack Rip Indra",
-        "Attack Soul Reaper",
-        "Attack Dough King",
-        "Attack Darkbeard",
-        "Auto Raid",
-        "Auto Shipwright",
-        "Teleport Acient Clock",
-        "Auto Pull Lever",
-        "Teleport Mirage",
-        "Teleport To Island",
-        "Teleport To Npc",
-        "Teleport Prehistoric Island",
-        "Teleport To Kitsune Island",
-        "Auto Spawn Kitsune Island",
-        "Auto Collect Soul Ember",
-        "Auto Summon Soul Ember",
-        "Auto Attack Leviathan",
-        "Auto Yama",
-        "Teleport Player",
-        "Auto Chest",
-        "Farm Observation",
-        "Kill Boss",
-        "Kill Mob",
-        "Auto New World",
-        "Auto Third World",
-        "Tween Safe if have Items",
-        "Teleport Frozen Dimension",
-        "Auto Crafting Volcanic Magnet",
-        "Auto Find Mirage",
-        "Auto Collect Bone",
-        "Auto Collect Berry",
-        "Auto Upgrade Race V2-V3 Draco",
-        "Auto Trial Draco",
-        "Follow Player Select",
-        "Auto Tween To Prehistoric Island",
-        "Auto Kill Golem",
-        "Auto Fix Volcano",
-        "Multi Find Leviathan",
-        "Auto Multi Raid",
-        "Auto Fire Shoot Heart Leviathan",
-        "Auto Buy Chip and Attack Law",
-        "Fully Trial Draco",
-        "Auto Destroy IDK",
-        "Auto TTK",
-        "Auto Attack All Mob and Boss",
-        "Auto Collect Egg",
-        "Collect Chest When Server Spawn God's Chalice or Fist of Darkness",
-        "Auto Event Magnet",
-        "Select Player PVP",
-        "Auto Chest Hop",
-        "Use Method Teleport",
-        "Bring Mob Count",
-        "Auto Buy Boat Beast Hunter",
-        "Auto Find Leviathan",
-        "Webhook Find Leviathan",
-        "Value Speed Boat",
-        "Auto Turn On V4",
-        "Auto Choose Gears",
-        "Ignore Craft Volcanic Magnet Draco",
-        "ESP Berry",
-        "Select Method Hop CDK1",
-        "Auto Sea Event With Friend",
-        "Select Friend",
-        "Reset Character Buy Boat",
-        "Tween Until Have Sea Event",
-        "Teleport Boat Other CFrame if Rough Sea",
-        "Auto Repair Ur Ship",
-        "ESP Player",
-        "Webhook Destroy IDK",
-        "Fast Attack",
-        "Super Fast Attack"
-    }
-    
-    function BananaCatOriginalUI.BuildMissingPages(Main)
-        if not Main or type(Main.CreatePage) ~= "function" then return {} end
-    
-        -- These pages are already created by the original 3tnn Main source.
-        -- Do not recreate them: duplicate pages can break/duplicate the hub UI.
-        local existingExact = {
-            ["Shop"] = true,
-            ["Status And Server"] = true,
-            ["LocalPlayer"] = true,
-            ["Setting Farm"] = true,
-            ["Hold and Select Skill"] = true,
-            ["Farming"] = true,
-            ["Stack Farming"] = true,
-            ["Farming Other"] = true,
-            ["Fruit and Raid, Dungeon"] = true,
-            ["Sea Event"] = true,
-            ["Upgrade Race"] = true,
-            ["Get and Upgrade Items"] = true,
-            ["Volcano Event"] = true,
-            ["ESP"] = true,
-            ["PVP"] = true,
-            ["Tab Webhook"] = true,
-            ["Setting"] = true,
-        }
-    
-        -- Same feature/page under a source-specific label; keep one functional page.
-        local existingAlias = {
-            ["Farming Orther"] = true,
-            ["Fruits and Raid,Dunge"] = true,
-            ["Webhook"] = true,
-            ["PVP Tab"] = true,
-            ["ESP Tab"] = true,
-            ["Setting Tab"] = true,
-        }
-    
-        local created = {}
-        for _, name in ipairs(BananaCatOriginalUI.Pages) do
-            if not existingExact[name] and not existingAlias[name] and not created[name] then
-                local ok, page = pcall(function()
-                    return Main.CreatePage({Page_Name = name, Page_Title = name})
-                end)
-                if not ok or not page then
-                    pcall(function()
-                        page = Main:CreatePage({Page_Name = name, Page_Title = name})
-                    end)
-                end
-                if page then
-                    created[name] = page
-                end
-            end
-        end
-        return created
-    end
-    PageShop = __BF_PageCache["Shop"]
-    PageStatusAndServer = __BF_PageCache["Status And Server"]
-    LocalPlayerMain = __BF_PageCache["LocalPlayer"]
-    SettingFarmMain = __BF_PageCache["Setting Farm"]
-    SettingSkillMain = __BF_PageCache["Hold and Select Skill"]
-    FarmMain = __BF_PageCache["Farming"]
-    stackFarmMain = __BF_PageCache["Stack Farming"]
-    FarmotherMain = __BF_PageCache["Farming Orther"]
-    DFRaidMain = __BF_PageCache["Fruits and Raid,Dunge"]
-    SeaEventTab = __BF_PageCache["Sea Event"]
-    RaceMain = __BF_PageCache["Upgrade Race"]
-    GetItemsMain = __BF_PageCache["Get and Upgrade Items"]
-    VolcanoTab = __BF_PageCache["Volcano Event"]
-    ESPTab = __BF_PageCache["ESP"]
-    PvpTab = __BF_PageCache["PVP"]
-    TabWebhook = __BF_PageCache["Tab Webhook"]
-    SettingPage = __BF_PageCache["Setting"]
-    -- Functional source pages: keep the recovered section bodies on their own original feature tabs.
-    RaceDracoMain = __BF_PageCache["Race Draco"]
-    RaceNormalMain = __BF_PageCache["Race Normal"]
-    RaceV4Main = __BF_PageCache["Race V4"]
-    FishingMain = __BF_PageCache["Fishing"]
-    FarmingVolcanoMain = __BF_PageCache["Farming Volcano"]
-    KitsuneEventMain = __BF_PageCache["Kitsune Event"]
-    if Main and type(BananaCatOriginalUI.BuildMissingPages) == "function" then
-        local __BF_MissingPages = BananaCatOriginalUI.BuildMissingPages(Main)
-        getgenv().__BF_BananaCatMissingPages = __BF_MissingPages
-    end
-end
--- PASS 34: recovered setting controls that existed in the source vocabulary but had no visible UI control.
--- The runtime already references these Settings keys; no new backend behavior is fabricated here.
-do
-    local __S = nil
-    if FarmingVolcanoMain then __S = FarmingVolcanoMain.CreateSection("Recovered Event Functions") end
-    if __S then
-        __S.CreateToggle({ Title = "Auto Present Event", Desc = "Recovered setting control", Default = Settings["Auto Present Event"] or false }, function(v) SaveSettings("Auto Present Event", v) end)
-        __S.CreateToggle({ Title = "Auto Event Halloween", Desc = "Recovered setting control", Default = Settings["Auto Event Halloween"] or false }, function(v) SaveSettings("Auto Event Halloween", v) end)
-        __S.CreateToggle({ Title = "Auto Event Magnet", Desc = "Recovered setting control", Default = Settings["Auto Event Magnet"] or false }, function(v) SaveSettings("Auto Event Magnet", v) end)
-        __S.CreateToggle({ Title = "Follow Player Select", Desc = "Recovered setting control", Default = Settings["Follow Player Select"] or false }, function(v) SaveSettings("Follow Player Select", v) end)
-        __S.CreateToggle({ Title = "Auto Tween To Prehistoric Island", Desc = "Recovered setting control", Default = Settings["Auto Tween To Prehistoric Island"] or false }, function(v) SaveSettings("Auto Tween To Prehistoric Island", v) end)
-        __S.CreateToggle({ Title = "Auto Kill Golem", Desc = "Recovered setting control", Default = Settings["Auto Kill Golem"] or false }, function(v) SaveSettings("Auto Kill Golem", v) end)
-        __S.CreateToggle({ Title = "Auto Fix Volcano", Desc = "Recovered setting control", Default = Settings["Auto Fix Volcano"] or false }, function(v) SaveSettings("Auto Fix Volcano", v) end)
-        __S.CreateToggle({ Title = "Fix Volcano Safe", Desc = "Recovered setting control", Default = Settings["Fix Volcano Safe"] or false }, function(v) SaveSettings("Fix Volcano Safe", v) end)
-    end
-    if SeaEventTab then
-        local __SE = SeaEventTab.CreateSection("Recovered Sea Functions")
-        __SE.CreateToggle({ Title = "Auto Shipwright", Desc = "Recovered setting control", Default = Settings["Auto Shipwright"] or false }, function(v) SaveSettings("Auto Shipwright", v) end)
-        __SE.CreateToggle({ Title = "Auto Celestial Soldier", Desc = "Recovered setting control", Default = Settings["Auto Celestial Soldier"] or false }, function(v) SaveSettings("Auto Celestial Soldier", v) end)
-        __SE.CreateToggle({ Title = "Auto Rip Commander", Desc = "Recovered setting control", Default = Settings["Auto Rip Commander"] or false }, function(v) SaveSettings("Auto Rip Commander", v) end)
-    end
-end
 
 PageShop = Main.CreatePage({ Page_Name = "Shop", Page_Title = "Shop" })
 getgenv().Options = A.Options
@@ -8634,6 +8214,7 @@ EventEasterSection.CreateToggle(
 		SaveSettings("Auto Collect Egg Easter", V)
 	end
 )
+FishingMain = Main.CreatePage({ Page_Name = "Fishing", Page_Title = "Fishing" })
 FishingSection = FishingMain.CreateSection("Fishing")
 FishingSection.CreateToggle(
 	{ Title = "Change Size Reel", Desc = nil, Default = Settings["Change Size Reel"] or false },
@@ -12506,6 +12087,7 @@ ToggleFindMirage = FarmingSeaEventSection.CreateToggle(
 		SaveSettings("Auto Find Mirage", y)
 	end
 )
+KitsuneEventMain = Main.CreatePage({ Page_Name = "Kitsune Event", Page_Title = "Kitsune Event" })
 KitsuneEventSection = KitsuneEventMain.CreateSection("Kitsune Event")
 KitsuneEventSection.CreateToggle(
 	{ Title = "Teleport To Kitsune Island", Desc = nil, Default = Settings["Teleport To Kitsune Island"] or false },
@@ -14082,6 +13664,7 @@ BoatSettingSection.CreateToggle(
 	end
 )
 RaceMain = Main.CreatePage({ Page_Name = "Upgrade Race", Page_Title = "Upgrade Race Tab" })
+RaceDracoMain = Main.CreatePage({ Page_Name = "Race Draco", Page_Title = "Race Draco" })
 RaceDracoSection = RaceDracoMain.CreateSection("Race Draco")
 function DetectGearUp(b)
 	local s = require(game:GetService("Players").LocalPlayer.PlayerGui.TempleGui.LocalScriptTemple.Buttons)
@@ -15268,6 +14851,7 @@ RaceDracoSection.CreateToggle(
 		SaveSettings("Auto Finish Train Draco Quest", g)
 	end
 )
+RaceNormalMain = Main.CreatePage({ Page_Name = "Race Normal", Page_Title = "Race Normal" })
 RaceNormalSection = RaceNormalMain.CreateSection("Race Normal")
 function AutoMinkV2()
 	local g = GetNearestChest()
@@ -15992,6 +15576,7 @@ RaceNormalSection.CreateToggle(
 		SaveSettings("Auto Get Ghoul", g)
 	end
 )
+RaceV4Main = Main.CreatePage({ Page_Name = "Race V4", Page_Title = "Race V4" })
 RaceV4Section = RaceV4Main.CreateSection("Race V4")
 RaceV4Section.CreateToggle({ Title = "No Frog", Desc = nil, Default = Settings["No Frog"] or false }, function(g)
 	if g then
@@ -19030,6 +18615,30 @@ SettingsVolcanoSection.CreateDropdown(
 		SaveSettings("Select Method Kill Golem", g)
 	end
 )
+FarmingVolcanoMain = Main.CreatePage({ Page_Name = "Farming Volcano", Page_Title = "Farming Volcano" })
+-- PASS 34: recovered setting controls that existed in the source vocabulary but had no visible UI control.
+-- The runtime already references these Settings keys; no new backend behavior is fabricated here.
+do
+    local __S = nil
+    if FarmingVolcanoMain then __S = FarmingVolcanoMain.CreateSection("Recovered Event Functions") end
+    if __S then
+        __S.CreateToggle({ Title = "Auto Present Event", Desc = "Recovered setting control", Default = Settings["Auto Present Event"] or false }, function(v) SaveSettings("Auto Present Event", v) end)
+        __S.CreateToggle({ Title = "Auto Event Halloween", Desc = "Recovered setting control", Default = Settings["Auto Event Halloween"] or false }, function(v) SaveSettings("Auto Event Halloween", v) end)
+        __S.CreateLabel({ Title = "Auto Event Magnet: implementation not recovered" })
+        __S.CreateToggle({ Title = "Follow Player Select", Desc = "Recovered setting control", Default = Settings["Follow Player Select"] or false }, function(v) SaveSettings("Follow Player Select", v) end)
+        __S.CreateToggle({ Title = "Auto Tween To Prehistoric Island", Desc = "Recovered setting control", Default = Settings["Auto Tween To Prehistoric Island"] or false }, function(v) SaveSettings("Auto Tween To Prehistoric Island", v) end)
+        __S.CreateToggle({ Title = "Auto Kill Golem", Desc = "Recovered setting control", Default = Settings["Auto Kill Golem"] or false }, function(v) SaveSettings("Auto Kill Golem", v) end)
+        __S.CreateToggle({ Title = "Auto Fix Volcano", Desc = "Recovered setting control", Default = Settings["Auto Fix Volcano"] or false }, function(v) SaveSettings("Auto Fix Volcano", v) end)
+        __S.CreateToggle({ Title = "Fix Volcano Safe", Desc = "Recovered setting control", Default = Settings["Fix Volcano Safe"] or false }, function(v) SaveSettings("Fix Volcano Safe", v) end)
+    end
+    if SeaEventTab then
+        local __SE = SeaEventTab.CreateSection("Recovered Sea Functions")
+        __SE.CreateToggle({ Title = "Auto Shipwright", Desc = "Recovered setting control", Default = Settings["Auto Shipwright"] or false }, function(v) SaveSettings("Auto Shipwright", v) end)
+        __SE.CreateToggle({ Title = "Auto Celestial Soldier", Desc = "Recovered setting control", Default = Settings["Auto Celestial Soldier"] or false }, function(v) SaveSettings("Auto Celestial Soldier", v) end)
+        __SE.CreateToggle({ Title = "Auto Rip Commander", Desc = "Recovered setting control", Default = Settings["Auto Rip Commander"] or false }, function(v) SaveSettings("Auto Rip Commander", v) end)
+    end
+end
+
 FarmingVolcanoSection = FarmingVolcanoMain.CreateSection("Farming Volcano")
 function AutoCraftinMagnetVol()
 	if not CheckItemInventory("Volcanic Magnet") then

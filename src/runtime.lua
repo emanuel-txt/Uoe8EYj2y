@@ -1,6 +1,6 @@
 -- language: Luau, file: runtime.lua, runtime: Roblox client executor, target: local configuration and lifecycle
 return function(base, release_url)
-    local runtime = {errors = {}, phase = "starting", connections = {}, tasks = {}, session_events = {}}
+    local runtime = {errors = {}, phase = "starting", connections = {}, tasks = {}, session_events = {}, error_index = {}}
     local http = base.game:GetService("HttpService")
     local player = base.game:GetService("Players").LocalPlayer
     local folder = "BananaLocal"
@@ -14,9 +14,20 @@ return function(base, release_url)
         return pcall(base.makefolder, folder)
     end
     function runtime.report(label, message)
+        local fingerprint = tostring(label) .. "\n" .. tostring(message)
+        local previous = runtime.error_index[fingerprint]
+        if previous then previous.count += 1; previous.last_time = os.time(); return end
         local entry = {label = tostring(label), message = tostring(message), time = os.time()}
+        entry.count = 1
         runtime.errors[#runtime.errors + 1] = entry
-        if #runtime.errors > 200 then table.remove(runtime.errors, 1) end
+        runtime.error_index[fingerprint] = entry
+        if #runtime.errors > 200 then
+            local removed = table.remove(runtime.errors, 1)
+            runtime.error_index[removed.label .. "\n" .. removed.message] = nil
+        end
+        if runtime.library and runtime.library.SetStatus then
+            runtime.library.SetStatus("Erro: " .. entry.label .. " — consulte BananaLocal.errors", true)
+        end
         if base.warn then base.warn("[BananaLocal] " .. entry.label .. ": " .. entry.message) end
         if type(base.writefile) == "function" and ensure_folder() then
             pcall(function() base.writefile(folder .. "/diagnostics.json", http:JSONEncode(runtime.errors)) end)
@@ -38,6 +49,29 @@ return function(base, release_url)
             runtime.tasks[running] = nil
         end)
         return thread
+    end
+    -- Legacy spawn is delayed. Several recovered callbacks start a worker
+    -- before SaveSettings; running it immediately makes that worker exit.
+    function runtime.defer(fn, ...)
+        local args = table.pack(...)
+        local schedule = base.task.defer or base.spawn
+        assert(type(schedule) == "function", "Deferred scheduling is unavailable")
+        return schedule(function()
+            if runtime.phase == "stopped" then return end
+            local running = coroutine.running()
+            runtime.tasks[running] = true
+            runtime.call("deferred task", fn, table.unpack(args, 1, args.n))
+            runtime.tasks[running] = nil
+        end)
+    end
+    function runtime.protected_call(fn, ...)
+        local values = table.pack(pcall(fn, ...))
+        if not values[1] then runtime.report("protected call", debug.traceback(tostring(values[2]), 2)) end
+        return table.unpack(values, 1, values.n)
+    end
+    function runtime.stage(name)
+        runtime.current_stage = name
+        if runtime.library and runtime.library.SetStatus then runtime.library.SetStatus("Carregando: " .. name) end
     end
     function runtime.read_settings()
         if type(base.readfile) ~= "function" then return {} end
@@ -129,9 +163,11 @@ return function(base, release_url)
     environment._G = environment
     environment.getgenv = function() return environment end
     environment.BananaLocal = runtime
-    environment.spawn = runtime.spawn
+    environment.spawn = runtime.defer
+    environment.pcall = runtime.protected_call
     environment.task = table.clone(base.task)
     environment.task.spawn = runtime.spawn
+    environment.task.defer = runtime.defer
     environment.Config = base.Config
     environment.UIToggled = true
     environment.LoadScript = false
