@@ -193,7 +193,7 @@ end
 
 end)()
 local runtime = runtime_factory(base, "https://raw.githubusercontent.com/emanuel-txt/Uoe8EYj2y/main/banana_local.lua")
-runtime.version = "2026.10.18-r4-level-farm"
+runtime.version = "VERSION_VALUE"
 runtime.env.Config = shared.Config
 shared.BananaLocal = runtime
 local level_farm_factory = (function()
@@ -473,10 +473,23 @@ getgenv().CheckPlaceId = game.PlaceId == 100117331123089 and 100117331123089 or 
 getgenv().CheckPlaceId2 = game.PlaceId == 4442272183 and 4442272183 or 79091703265657
 getgenv().CheckPlaceId3 = game.PlaceId == 2753915549 and 2753915549 or 85211729168715
 
--- PASS24: source-compatible world flags required by the recovered CheckQuest.
-OldWorld = game.PlaceId == getgenv().CheckPlaceId3
-NewWorld = game.PlaceId == getgenv().CheckPlaceId2
-ThreeWorld = game.PlaceId == getgenv().CheckPlaceId
+function UpdateWorldFlags()
+	local p = game.PlaceId
+	OldWorld = (p == 2753915549 or p == 85211729168715)
+	NewWorld = (p == 4442272183 or p == 79091703265657)
+	ThreeWorld = (p == 7449423635 or p == 100117331123089 or p == 122478697296975)
+	if not OldWorld and not NewWorld and not ThreeWorld then
+		local lvl = (game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("Data") and game.Players.LocalPlayer.Data:FindFirstChild("Level") and game.Players.LocalPlayer.Data.Level.Value) or 1
+		if lvl < 700 then
+			OldWorld = true
+		elseif lvl < 1500 then
+			NewWorld = true
+		else
+			ThreeWorld = true
+		end
+	end
+end
+UpdateWorldFlags()
 
 
 -- PASS25: exact source-correlated recovery
@@ -1380,7 +1393,8 @@ end
 
 -- PASS24: exact source-correlated CheckQuest recovered from the target-specific corpus.
 function CheckQuest()
-	local MyLevel = game.Players.LocalPlayer.Data.Level.Value
+	UpdateWorldFlags()
+	local MyLevel = (game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("Data") and game.Players.LocalPlayer.Data:FindFirstChild("Level") and game.Players.LocalPlayer.Data.Level.Value) or 1
 	if OldWorld then
 		if MyLevel == 1 or MyLevel <= 9 then -- Bandit
 			Ms = "Bandit [Lv. 5]"
@@ -5901,14 +5915,35 @@ function DeleteIgnoredMob()
 	end
 end
 function DetectMob(Q)
+	if not Q or Q == "" then return nil end
 	local d, I = 1 / 0
+	local cleanQ = typeof(Q) == "string" and (Q:gsub("%s*%[Lv%.?%s*%d+%]", ""):match("^%s*(.-)%s*$")) or nil
+	local lp = game:GetService("Players").LocalPlayer
+	local myChar = lp and lp.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return nil end
 	for _, o in pairs(game.Workspace.Enemies:GetChildren()) do
-		if (typeof(Q) == "table" and (table.find(Q, o.Name)) or o.Name == Q) and (IsMobAlive(o)) then
-			_ = (
-				o.HumanoidRootPart.Position - game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position
-			).magnitude
-			if _ < d then
-				d, I = _, o
+		if IsMobAlive(o) then
+			local match = false
+			if typeof(Q) == "table" then
+				match = table.find(Q, o.Name) ~= nil
+				if not match then
+					for _, name in ipairs(Q) do
+						local clean = name:gsub("%s*%[Lv%.?%s*%d+%]", ""):match("^%s*(.-)%s*$")
+						if string.find(o.Name, name) or (clean and string.find(o.Name, clean)) then
+							match = true
+							break
+						end
+					end
+				end
+			elseif o.Name == Q or (cleanQ and (string.find(o.Name, cleanQ) or o.Name:gsub("%s*%[Lv%.?%s*%d+%]", ""):match("^%s*(.-)%s*$") == cleanQ)) then
+				match = true
+			end
+			if match and o:FindFirstChild("HumanoidRootPart") then
+				local dist = (o.HumanoidRootPart.Position - myRoot.Position).magnitude
+				if dist < d then
+					d, I = dist, o
+				end
 			end
 		end
 	end
@@ -6479,6 +6514,10 @@ local o = SettingAutoFarmSection.CreateToggle(
 	{ Title = "Start Farm", Desc = nil, Default = Settings["Start Farm"] or false },
 	function(V)
 		SaveSettings("Start Farm", V)
+		if V then
+			StackFarm = true
+			getgenv().StackFarm = true
+		end
 	end
 )
 MasteryFarmSection = FarmMain.CreateSection("Mastery Farm")
@@ -6653,63 +6692,93 @@ function CFrameQuest()
 	end
 	getgenv().questpoint.SkyExp1Quest = CFrame.new(-7857.28516, 5544.34033, -382.321503)
 end
-local function B(C)
-	local J = Z.Data.QuestData
-	local F, q, c = J and (next(J.Task)), 0, {}
-	for D, r in pairs(Z.Data.NPCList) do
-		if not table.find(V, r.InternalQuestName) then
-			for V, n in pairs(r.Levels) do
-				D = H[r.InternalQuestName][V]
-				if D then
-					local u, W = next(D.Task)
-					if W and W > 1 and n <= C and n >= q then
-						c = {
-							Level = n,
-							Name = r.NPCName,
-							QuestName = r.InternalQuestName,
-							Pos = r.Position,
-							Id = V,
-							Mob = u,
-						}
-						if F == u and V > 1 then
-							J = H[r.InternalQuestName][V - 1]
-							if J and J.Task then
-								for H, C in pairs(J.Task) do
-									if H ~= F and C > 1 then
-										c.Mob = H
-										c.Id = V - 1
-										break
-									end
-								end
-							end
+local function B(playerLvl)
+	UpdateWorldFlags()
+	CheckQuest()
+	if CFrameQuest and NameQuest and LevelQuest and NameMon then
+		return {
+			Level = LevelQuest,
+			Name = NameMon,
+			QuestName = NameQuest,
+			Pos = CFrameQuest,
+			Id = LevelQuest,
+			Mob = NameMon,
+			Ms = Ms,
+			CFrameMon = CFrameMon
+		}
+	end
+	-- Fallback to GuideModule
+	local myLvl = playerLvl or (t and t.Data and t.Data.Level and t.Data.Level.Value) or 1
+	local highestReq, chosen = 0, nil
+	if Z and Z.Data and Z.Data.NPCList then
+		for _, npc in pairs(Z.Data.NPCList) do
+			if type(npc.Levels) == "table" and type(npc.InternalQuestName) == "string" then
+				for qId, reqLvl in pairs(npc.Levels) do
+					if reqLvl <= myLvl and reqLvl >= highestReq then
+						local qData = H and H[npc.InternalQuestName] and H[npc.InternalQuestName][qId]
+						local targetMob = qData and qData.Task and next(qData.Task)
+						if targetMob then
+							chosen = {
+								Level = reqLvl,
+								Name = npc.NPCName,
+								QuestName = npc.InternalQuestName,
+								Pos = npc.Position,
+								Id = qId,
+								Mob = targetMob
+							}
+							highestReq = reqLvl
 						end
-						q = n
 					end
 				end
 			end
 		end
 	end
-	return c
+	return chosen
 end
 
 local BananaSelectLevelQuest = B
 TakeQuestLevel = function()
-	local V = B(t.Data.Level.Value)
-	if not V or not V.Pos then
+	local quest = BananaSelectLevelQuest((t and t.Data and t.Data.Level and t.Data.Level.Value) or 1)
+	if not quest or not quest.Pos then
 		return
 	end
-	local H, B, C =
-		typeof(V.Pos) == "CFrame" and V.Pos.Position or V.Pos,
-		t.Character and (t.Character:FindFirstChild("HumanoidRootPart")),
-		t.Character and (t.Character:FindFirstChild("Humanoid"))
-	if not B or not C then
+	local myChar = t and t.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
+	if not myRoot or not myHum or myHum.Health <= 0 then
 		return
 	end
-	if (H - B.Position).Magnitude <= 8 and C.Health > 0 then
-		wait(2)
-		CommF:InvokeServer("StartQuest", tostring(V.QuestName), V.Id)
+	local npcPos = typeof(quest.Pos) == "CFrame" and quest.Pos.Position or quest.Pos
+	local dist = (npcPos - myRoot.Position).Magnitude
+
+	-- Handle long distance world teleports (Fishman Island / Haunted Ship)
+	if OldWorld and (Ms == "Fishman Commando [Lv. 400]" or Ms == "Fishman Warrior [Lv. 375]") and dist > 50000 then
+		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
+		task.wait(0.5)
+		return
+	elseif OldWorld and not (Ms == "Fishman Commando [Lv. 400]" or Ms == "Fishman Warrior [Lv. 375]") and dist > 50000 then
+		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(3864.8515625, 6.6796875, -1926.7841796875))
+		task.wait(0.5)
+		return
+	elseif NewWorld and string.find(tostring(Ms), "Ship") and dist > 30000 then
+		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
+		task.wait(0.5)
+		return
+	elseif NewWorld and not string.find(tostring(Ms), "Ship") and dist > 30000 then
+		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-6508.5581054688, 89.034996032715, -132.83953857422))
+		task.wait(0.5)
+		return
+	end
+
+	if dist <= 25 then
+		myRoot.CFrame = typeof(quest.Pos) == "CFrame" and quest.Pos or CFrame.new(npcPos)
+		task.wait(0.2)
+		CommF:InvokeServer("StartQuest", tostring(quest.QuestName), quest.Id)
+		task.wait(0.1)
+		CommF:InvokeServer("SetSpawnPoint")
+		task.wait(0.2)
 	else
-		toTarget(CFrame.new(H) * CFrame.new(0, 4, 2), true)
+		toTarget(CFrame.new(npcPos) * CFrame.new(0, 4, 2), true)
 	end
 end
 
@@ -7164,13 +7233,31 @@ function FarmMethod()
 			return
 		end
 	end
-	f = V or (GetNameDoubleQuest()) or ""
+	-- Always ensure CheckQuest is up to date for Level Farm
+	if not Settings["Farm Material"] and (f == nil or f == "Level Farm") then
+		CheckQuest()
+	end
+	f = V or (GetNameDoubleQuest()) or NameMon or Ms or ""
 	local function _isQuestActive()
 		local pg = t:FindFirstChild("PlayerGui")
 		local main = pg and (pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)"))
 		local q = main and main:FindFirstChild("Quest")
 		local qv = q and (q.Visible == true or (q:FindFirstChild("Container") and q.Container.Visible == true))
 		return (qv == true) or (DontQuest and DontQuest())
+	end
+	-- Check if player currently has an incorrect quest for their level
+	if _isQuestActive() and NameMon and NameMon ~= "" then
+		local pg = t:FindFirstChild("PlayerGui")
+		local main = pg and (pg:FindFirstChild("Main") or pg:FindFirstChild("Main (minimal)"))
+		local q = main and main:FindFirstChild("Quest")
+		local title = q and q:FindFirstChild("Container") and q.Container:FindFirstChild("QuestTitle") and q.Container.QuestTitle:FindFirstChild("Title")
+		if title and title.Text ~= "" and not string.find(title.Text, NameMon) then
+			pcall(function()
+				game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
+			end)
+			task.wait(0.3)
+			return
+		end
 	end
 	if not _isQuestActive() and typeof(f) == "string" then
 		TakeQuestLevel()
@@ -7277,9 +7364,33 @@ function FarmMethod()
 				end)
 			end
 		end
-		local V = DetectMob(f)
+		local V = DetectMob(f) or (NameMon and DetectMob(NameMon)) or (Ms and DetectMob(Ms))
 		if not V then
-			if typeof(f) == "table" then
+			if CFrameMon then
+				local myChar = t and t.Character
+				local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+				if myRoot then
+					local distMon = (CFrameMon.Position - myRoot.Position).Magnitude
+					if OldWorld and (Ms == "Fishman Commando [Lv. 400]" or Ms == "Fishman Warrior [Lv. 375]") and distMon > 50000 then
+						game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
+						task.wait(0.5)
+						return
+					elseif OldWorld and not (Ms == "Fishman Commando [Lv. 400]" or Ms == "Fishman Warrior [Lv. 375]") and distMon > 50000 then
+						game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(3864.8515625, 6.6796875, -1926.7841796875))
+						task.wait(0.5)
+						return
+					elseif NewWorld and string.find(tostring(Ms), "Ship") and distMon > 30000 then
+						game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(923.21252441406, 126.9760055542, 32852.83203125))
+						task.wait(0.5)
+						return
+					elseif NewWorld and not string.find(tostring(Ms), "Ship") and distMon > 30000 then
+						game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-6508.5581054688, 89.034996032715, -132.83953857422))
+						task.wait(0.5)
+						return
+					end
+				end
+				toTarget(CFrameMon * CFrame.new(0, 30, 0))
+			elseif typeof(f) == "table" then
 				if #N >= #f then
 					N = {}
 					return
@@ -7314,6 +7425,12 @@ function FarmMethod()
 				end
 			end
 		else
+			pcall(function()
+				equiptool(NameWeapon(Settings["Select Weapon"] or "Melee"))
+				if not game.Players.LocalPlayer.Character:FindFirstChild("HasBuso") then
+					game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
+				end
+			end)
 			repeat
 				task.wait()
 				sizepart(V)
@@ -7326,11 +7443,11 @@ function FarmMethod()
 				then
 					toTarget(V.HumanoidRootPart.CFrame * CFrame.new(7, 20, 0))
 				elseif Settings["Select Weapon"] == "Blox Fruit" then
-					toTarget(V.HumanoidRootPart.CFrame * CFrame.new(-7, getgenv().YPosFruit, 0))
+					toTarget(V.HumanoidRootPart.CFrame * CFrame.new(-7, getgenv().YPosFruit or 20, 0))
 				else
 					toTarget(V.HumanoidRootPart.CFrame * CFrame.new(7, 20, 0))
 				end
-			until not IsMobAlive(V) or not Settings["Start Farm"] or not StackFarm
+			until not IsMobAlive(V) or not Settings["Start Farm"] or not StackFarm or not _isQuestActive()
 			if getgenv().QuestTrainer and getgenv().QuestTrainer.CountKillMob then
 				getgenv().QuestTrainer.CountKillMob = getgenv().QuestTrainer.CountKillMob + 1
 			end
@@ -7430,7 +7547,7 @@ end
 spawn(function()
 	while task.wait() do
 		local f, f = pcall(function()
-			if Settings["Start Farm"] and StackFarm then
+			if Settings["Start Farm"] and (StackFarm ~= false) then
 				FarmMethod()
 			end
 		end)
