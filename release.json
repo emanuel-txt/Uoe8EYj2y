@@ -32,9 +32,11 @@
     "unmodified_vendor": true
   },
   "original_ui_executed_in_roblox": false,
+  "diagnostic_helper_tested": true,
   "files_sha256": {
     "banana_local.lua": "554833f12cd8818b00d8b5d8b59b35c9c9ba61e61da1972465d3ce02b5688eb3",
     "loader.lua": "fbeb9b6b690168a3b0c7845aab8a1d40f3941caa6280cff331a2343688729507",
+    "diagnostics.lua": "54e521def6a148438247853b74b9147b8b92f431520738a8afebd01104fbf309",
     "src/runtime.lua": "ca8b26f7ab999e09e6cdeb3540c16374445d7626bc193d6243957a81b2136a30",
     "src/ui.lua": "a3cb5281e04c2f99fb8fa705ed7e474700cd60b0cd5b38eef1db3d06776ce92d",
     "src/core.lua": "07d525049863fdb1f20d2987297f96b594bf761638e8b5d36bec9dcc64b1ab5e",
