@@ -159,7 +159,10 @@ return function(base, release_url)
         if runtime.library then runtime.library.Destroy() end
         runtime.phase = "stopped"
     end
-    local environment = setmetatable({}, {__index = base})
+    local environment = setmetatable({}, {__index = function(_, name)
+        if name == "Key" or name == "key" or name == "script_key" then return nil end
+        return base[name]
+    end})
     environment._G = environment
     environment.getgenv = function() return environment end
     environment.BananaLocal = runtime

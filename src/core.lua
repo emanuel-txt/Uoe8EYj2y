@@ -1525,7 +1525,8 @@ game:GetService("Players").LocalPlayer.Idled:connect(function()
 	wait(1)
 	vu:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
-local A = BananaLocal.library
+BananaLocal.stage("Biblioteca visual original")
+local A = BananaLocal.load_interface()
 Main = A.CreateMain({ Title = "Blox Fruit", Desc = " - Blox Fruit" })
 
 PageShop = Main.CreatePage({ Page_Name = "Shop", Page_Title = "Shop" })
@@ -20777,8 +20778,7 @@ a.CreateButton({ Title = "Copy Config" }, function()
 	A.CreateNoti({ Title = "Banana Cat Hub", Desc = "Successfully Copy Config", ShowTime = 5 })
 end)
 a.CreateBind({ Title = "Toggle GUI", Key = Enum.KeyCode.LeftControl }, function()
-    local gui = BananaLocal.library.gui
-    if gui then gui.Enabled = not gui.Enabled end
+    BananaLocal.library.Toggle()
 end)
 if Settings["Auto Load Script"] then BananaLocal.queue_reload() end
 do

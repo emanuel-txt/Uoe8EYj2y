@@ -1,17 +1,17 @@
 {
   "artifact": "banana_local.lua",
-  "sha256": "ef9920c062aac8c9c0e0df60ff535624dfeb5a7e5accd65297e95a25f9e1c563",
+  "sha256": "554833f12cd8818b00d8b5d8b59b35c9c9ba61e61da1972465d3ce02b5688eb3",
   "release_url": "https://raw.githubusercontent.com/emanuel-txt/Uoe8EYj2y/main/banana_local.lua",
   "source_basis": "DevxBananaCat.lua supplied for recovery",
   "source_sha256": "a2ebb08501f3811ad02d35452d285eda5b0a2ccaeef0c87a5d10ea97f1f24692",
   "status": "experimental reconstruction; not tested in Roblox",
   "luau_compilation_passed": true,
-  "module_contract_tests": 51,
-  "version": "2026.10.18-r2",
+  "module_contract_tests": 47,
+  "version": "2026.10.18-r3-original-ui",
   "module_start_lines": {
     "runtime": 14,
-    "ui": 197,
-    "core": 531
+    "ui": 200,
+    "core": 293
   },
   "source_callback_fixtures_tested": true,
   "gameplay_tested": false,
@@ -24,11 +24,20 @@
     "Label": 19,
     "Bind": 1
   },
+  "ui": {
+    "implementation": "original-zzzz",
+    "origin": "https://raw.githubusercontent.com/obiiyeuem/vthangsitink/refs/heads/main/zzzz.lua",
+    "sha256": "9151a8531e71d0c4fdb660b4236cedcbff1ded67b262ba81e5f080abfb49639c",
+    "vendor_file": "vendor/original-ui.lua",
+    "unmodified_vendor": true
+  },
+  "original_ui_executed_in_roblox": false,
   "files_sha256": {
-    "banana_local.lua": "ef9920c062aac8c9c0e0df60ff535624dfeb5a7e5accd65297e95a25f9e1c563",
+    "banana_local.lua": "554833f12cd8818b00d8b5d8b59b35c9c9ba61e61da1972465d3ce02b5688eb3",
     "loader.lua": "fbeb9b6b690168a3b0c7845aab8a1d40f3941caa6280cff331a2343688729507",
-    "src/runtime.lua": "b120305696eb282ff503bfaf6081cc7296dd5c3f898e72d55a57ce49ab4c7f89",
-    "src/ui.lua": "3ecadde5d71cc95eb71a4f05d16defdac5310d0019cb25dff9b74f1070a43ef9",
-    "src/core.lua": "b454245565591dac73fd4ac91883b0fc092831fd1509d92854fab6de0e376730"
+    "src/runtime.lua": "ca8b26f7ab999e09e6cdeb3540c16374445d7626bc193d6243957a81b2136a30",
+    "src/ui.lua": "a3cb5281e04c2f99fb8fa705ed7e474700cd60b0cd5b38eef1db3d06776ce92d",
+    "src/core.lua": "07d525049863fdb1f20d2987297f96b594bf761638e8b5d36bec9dcc64b1ab5e",
+    "vendor/original-ui.lua": "9151a8531e71d0c4fdb660b4236cedcbff1ded67b262ba81e5f080abfb49639c"
   }
 }
