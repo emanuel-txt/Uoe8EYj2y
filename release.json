@@ -1,0 +1,27 @@
+{
+  "artifact": "banana_local.lua",
+  "sha256": "ca8ee8a813951391858c931ea7b04f4eaf08403f31fea80c5c6cfa63ebf9c713",
+  "release_url": "https://raw.githubusercontent.com/emanuel-txt/Uoe8EYj2y/main/banana_local.lua",
+  "source_basis": "DevxBananaCat.lua supplied for recovery",
+  "source_sha256": "a2ebb08501f3811ad02d35452d285eda5b0a2ccaeef0c87a5d10ea97f1f24692",
+  "status": "experimental reconstruction; not tested in Roblox",
+  "luau_compilation_passed": true,
+  "module_contract_tests": 35,
+  "gameplay_tested": false,
+  "control_declarations": {
+    "Toggle": 227,
+    "Button": 40,
+    "Box": 3,
+    "Dropdown": 39,
+    "Slider": 18,
+    "Label": 18,
+    "Bind": 1
+  },
+  "files_sha256": {
+    "banana_local.lua": "ca8ee8a813951391858c931ea7b04f4eaf08403f31fea80c5c6cfa63ebf9c713",
+    "loader.lua": "fbeb9b6b690168a3b0c7845aab8a1d40f3941caa6280cff331a2343688729507",
+    "src/runtime.lua": "4318603a88a78b4d9a64326d3034877188bbb4fbdc7f57ab384041103d7a9582",
+    "src/ui.lua": "6e799056e3cf3570b62462115d8337e78a3f95391cd66b64952018d9391c48bb",
+    "src/core.lua": "3b7287a9a3644fd8613da5d90c9896210b43319ef6c9ce25fa0d191b6b993243"
+  }
+}

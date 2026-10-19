@@ -1,0 +1,4 @@
+BananaLocal/
+*.log
+.env
+.env.*
